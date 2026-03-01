@@ -12,7 +12,7 @@
 BADBOT_ONLINE_LISTFILE=https://github.com/mitchellkrogza/apache-ultimate-bad-bot-blocker/raw/ab496b45bbc5c9ecabc2fc678441c672cdb0271a/_generator_lists/bad-user-agents-htaccess.list
 
 # custom/own bad user agents
-# each user agents per line, no escaped characters 
+# each user agents per line, no escaped characters
 BADBOT_LOCAL_LISTFILE=
 
 # fail2ban filter file to replace the badbots line with
@@ -27,7 +27,34 @@ BADBOT_FAIL2BAN_BADBBOT_REGEX="badbotscustom\s*=\s*"
 
 ################################################################################
 #
-# download & clean template file 
+# check dependencies
+#
+################################################################################
+
+if ! command -v sudo >/dev/null 2>&1; then
+  echo "Error: 'sudo' command is required but not installed. Please install package 'sudo'." >&2
+  exit 1
+fi
+
+if ! command -v wget >/dev/null 2>&1; then
+  echo "Error: 'wget' command is required but not installed. Please install package 'wget'." >&2
+  exit 1
+fi
+
+################################################################################
+#
+# do not run as user root
+#
+################################################################################
+
+if [ "$(id -u)" -eq 0 ]; then
+    echo "Please do not run this script as root/sudo. It will ask for password when needed."
+    exit 1
+fi
+
+################################################################################
+#
+# download & clean template file
 #
 ################################################################################
 
@@ -40,7 +67,7 @@ BADBOT_TEMPFILE=$(mktemp /tmp/apache_bad_bot_listfile.XXXXXX)
 # download list file
 wget -q -O "$BADBOT_TEMPFILE" $BADBOT_ONLINE_LISTFILE
 
-# in the current file all whitespaces are escaped with backslash 
+# in the current file all whitespaces are escaped with backslash
 # -> replace escaped whitespaces with normal whitespace
 sed --in-place 's/\\ / /g' "$BADBOT_TEMPFILE"
 
@@ -103,7 +130,7 @@ echo "  Converted lines to single line."
 echo "4. Adapting fail2ban filter file..."
 
 if [ "$BADBOT_FAIL2BAN_FILTERFILE_BACKUP" -eq 1 ]; then
-  cp "$BADBOT_FAIL2BAN_FILTERFILE" "$BADBOT_FAIL2BAN_FILTERFILE.bak"
+  sudo cp "$BADBOT_FAIL2BAN_FILTERFILE" "$BADBOT_FAIL2BAN_FILTERFILE.bak"
   echo "  Created backup file $BADBOT_FAIL2BAN_FILTERFILE.bak"
 fi
 
@@ -116,7 +143,7 @@ ESCAPED_BADBOT_ONE_LINE=$(echo "$BADBOT_ONE_LINE" | sed 's/[.^$*\\()/[]/\\&/g')
 
 # replace in fail2ban filter file
 #echo "sed --in-place --regexp-extended 's/^(badbotscustom\s*=\s*).*$/\1$BADBOT_ONE_LINE/' \"$BADBOT_FAIL2BAN_FILTERFILE\""
-sed --in-place --regexp-extended 's/^(badbotscustom\s*=\s*).*$/\1'"$ESCAPED_BADBOT_ONE_LINE"'/' "$BADBOT_FAIL2BAN_FILTERFILE"
+sudo sed --in-place --regexp-extended 's/^(badbotscustom\s*=\s*).*$/\1'"$ESCAPED_BADBOT_ONE_LINE"'/' "$BADBOT_FAIL2BAN_FILTERFILE"
 echo "  Adapated file $BADBOT_FAIL2BAN_FILTERFILE"
 
 exit 0
